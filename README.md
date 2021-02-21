@@ -4,7 +4,8 @@ Contracts not deployed any mainnet or test network. Can use Ganache to run local
 ```
 npm install
 ganache-cli
-truffle test
+truffle test test/RewardToken.test.js
+truffle test test/Staker.test.js
 // to compile contracts
 truffle compile
 // to migrate contracts

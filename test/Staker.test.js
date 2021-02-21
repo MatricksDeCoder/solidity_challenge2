@@ -374,8 +374,8 @@ contract('Staker', ([deployer, owner2, staker1, staker2]) => {
         })
 
         beforeEach(async () => {
-          const allAmount = await stakeHouse.balanceTotal(staker1)
-          const someAmount = await stakeHouse.balanceRewards(owner2)
+          let allAmount = await stakeHouse.balanceTotal(staker1)
+          let someAmount = await stakeHouse.balanceRewards(owner2)
           resultStaker1 = await stakeHouse.withdrawPartial(allAmount, {from:staker1})
           resultOwner1  = await stakeHouse.withdrawPartial(someAmount, {from:owner2})
         })
@@ -402,13 +402,26 @@ contract('Staker', ([deployer, owner2, staker1, staker2]) => {
             totalStaked.toString().should.equal(tokenFormat('100000').toString())
           })
   
-          it('rejects withdraw from staker with no balances ',() => {
-            stakeHouse.withdraw({from:staker2}).should.be.rejected
-          })
-  
         })
 
-        describe('owner1 only withdraw rewards ', () => {
+        describe('owner2 only withdraw rewards ', () => {
+
+          it('updates that address is still a staker', async() => {
+            const isStaker = await stakeHouse.isStaker(owner2)
+            isStaker.should.equal(true)
+          })
+
+          it('updates and reduces rewardsTotal to zero ', async() => {
+            const rewardsLeft = await stakeHouse.balanceRewards(owner2)
+            //initially was 200000 now 100000 taken out
+            rewardsLeft.toString().should.equal('0')
+          })
+
+          /*
+          To fix identified erors eg minting ownership, withdrawPartial staker no balance by adding tests etc 
+          To add more tests - amount eats into stakeBalance and should reduce it etc ,staker with no balances etc 
+
+          */
 
         })
 
