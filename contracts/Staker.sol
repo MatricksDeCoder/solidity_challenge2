@@ -166,14 +166,20 @@ contract Staker {
     /// @param _amount amount of RewardTokens to be withdrawn 
     function _withdraw(uint _amount) internal {
 
-        totalStakers              =  totalStakers.sub(1);
-        totalStaked               =  totalStaked.sub(_amount);
         if(_amount <= rewardBalances[msg.sender]) {
             rewardBalances[msg.sender] = rewardBalances[msg.sender].sub(_amount);
         } else {
-            uint _excess                = _amount.sub(rewardBalances[msg.sender]);
+            uint _excess               = _amount.sub(rewardBalances[msg.sender]);
             rewardBalances[msg.sender] = 0;
             stakeBalances[msg.sender]  = stakeBalances[msg.sender].sub(_excess);
+
+            totalStaked                = totalStaked.sub(_excess);
+
+            if(stakeBalances[msg.sender] == 0) {
+                totalStakers = totalStakers.sub(1);
+                totalBalances[msg.sender] = 0;
+                stakeBalances[msg.sender] = 0;
+            }
         }
         
         emit Withdrawal(msg.sender, 
@@ -188,7 +194,7 @@ contract Staker {
 
     /// @notice  Withdraw an amount of RewardTokens
     /// @param _amount amount of RewardTokens to be withdrawn
-    function withdraw(uint _amount) external {
+    function withdrawPartial(uint _amount) external {
         require(_amount > 0);
         require(totalBalances[msg.sender] >= _amount);
         require(rewardToken.transfer(msg.sender, _amount)); 
@@ -198,6 +204,7 @@ contract Staker {
     /// @notice Withdraw all your balances in project (stake + rewards ) 
     /// @notice Can no longer earn rewards and is considered non-staker
     function withdraw() external {
+        require(isStaker(msg.sender));
         uint _total = totalBalances[msg.sender];
         require(rewardToken.transfer(msg.sender, _total)); 
         _withdraw(_total);
@@ -214,7 +221,7 @@ contract Staker {
     }
 
     /// @notice One of owners distirbutes rewards to stakers
-    function reward() isValidSchedule()  external {
+    function reward() isValidSchedule() isValidOwner() external {
         rewardToken.mint(address(this),newDistributionSupply);
         totalRewardCycles = totalRewardCycles.add(1);
         lastSchedule    = block.number;
@@ -223,6 +230,7 @@ contract Staker {
             if(isStaker(_staker)) {
                 uint _rewardShare = shareReward(_staker, newDistributionSupply);            
                 rewardBalances[_staker] = rewardBalances[_staker].add(_rewardShare);
+                totalBalances[_staker]   = stakeBalances[_staker].add(rewardBalances[_staker]);
             }
         }
         emit Reward(

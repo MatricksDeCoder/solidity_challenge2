@@ -30,7 +30,7 @@ contract('Staker', ([deployer, owner2, staker1, staker2]) => {
     const newDistributionSupply = 1000000 //mint 1000000 new tokens to give as staking reward every n blocks
     const blocksSchedule  = 4  // reward for staking every 4 blocks (approx every minute) ideal for testing local
 
-    let rewardToken, stakeHouse, startProject,resultDeployer, resultOwner2, resultStaker1, resultStaker2, amountStaked
+    let rewardToken, stakeHouse, startProject,resultDeployer, resultOwner2, resultStaker1, resultStaker2, amountStaked,rewardOwener2, rewardStaker1
 
     beforeEach( async () => {
       amountStaked = tokenFormat(100000)
@@ -47,6 +47,8 @@ contract('Staker', ([deployer, owner2, staker1, staker2]) => {
       await rewardToken.approve(stakeHouse.address, tokenFormat(500000), {from:owner2})
       await rewardToken.approve(stakeHouse.address, tokenFormat(500000), {from: staker1})
       await rewardToken.approve(stakeHouse.address, tokenFormat(500000), {from: staker2})
+
+      
     })
 
     describe('deployment and project start', () => {
@@ -236,40 +238,42 @@ contract('Staker', ([deployer, owner2, staker1, staker2]) => {
         })
 
     })
-  
+    
     describe('distribution of rewards reward()', () => {
 
-      let resultRewardFulfil,lastSchedule, currBlock, readyToReward
       beforeEach(async () => {
+
+
+        await stakeHouse.deposit(amountStaked, {from:owner2})
+        await stakeHouse.deposit(amountStaked, {from:staker1})
+
+        // calculate rewards that will be due to stakers if staked till next schedule
+        // based on amountStaked and totalStaked
+        let totalsStaked  = await stakeHouse.totalStaked();
+        totalsStaked      = +(totalsStaked.toString())
+        console.log("TOTALS STAKED .........: ",totalsStaked)
+        // distributionSupply has not changed from deployment = 1000000
+        rewardsOwner2     = tokenFormat((+amountStaked/totalsStaked) * newDistributionSupply)
+        rewardStaker1     = tokenFormat((+amountStaked/totalsStaked) * newDistributionSupply)
+
         lastSchedule       = await stakeHouse.lastSchedule()
-        currBlock            = await stakeHouse.latestBlock()
+        currBlock          = await stakeHouse.latestBlock()
         //console.log("LATEST BLOCK: ", +lastSchedule.toString())
         //console.log("CURR BLOCK :" , +currBlock.toString())
-        // valid block time has passed
+
+        //reward after correct schedule
         if((currBlock-lastSchedule) >= blocksSchedule) {
           resultRewardFulfil   = await stakeHouse.reward({from:owner2})
-        }
-        
-      })     
-
-      it('rejects reward() called by non-owner', async () => {
-        // not owner
-        stakeHouse.reward({from:staker1}).should.be.rejected
-        
-      })   
-      
-      it('allows owner to reward() if succificient blocks have passed', async() => {
-        if(readyToReward) {
-          // owner 
-          resultRewardFulfill.should.be.fulfilled
            // try to immediately reward by owner
           lastSchedule       = await stakeHouse.lastSchedule()
           currBlock            = await stakeHouse.latestBlock()
           console.log("Blocks since :", +currBlock.toString() - +lastSchedule.toString())
           stakeHouse.reward({from:owner2}).should.be.rejected
         }
-      })     
-           
+
+      })      
+
+      
       it('emits reward event', async () => {
 
         const log = resultRewardFulfil.logs[0]
@@ -287,13 +291,23 @@ contract('Staker', ([deployer, owner2, staker1, staker2]) => {
         resultStaker1 = await stakeHouse.balanceRewards(staker1)
         // staker2 has not staked so isNotStaker and gets no rewards
         resultStaker2 = await stakeHouse.balanceRewards(staker2)
-        resultOwner2.toString().should.equal('0')
-        resultStaker1.toString().should.equal('0')
+        resultOwner2.toString().should.equal(rewardsOwner2.toString())
+        resultStaker1.toString().should.equal(rewardStaker1.toString())
         resultStaker2.toString().should.equal('0')
         
       })
 
       it('updateds totalBalances of stakers', async() => {
+        // totals = staked + rewards = e.g (100000 + rewardsOwner2)
+        resultOwner2  = await stakeHouse.balanceTotal(owner2)
+        resultStaker1 = await stakeHouse.balanceTotal(staker1)
+        console.log("RESULT TOTALS :::::::::::::::::, ",resultOwner2.toString(),resultStaker1.toString())
+        // staker2 has not staked so isNotStaker and gets no rewards and still has no stake
+        // new totals are reward 500000(split of 1million) + initial staked (100000) tokens
+        resultStaker2 = await stakeHouse.balanceTotal(staker2)
+        resultOwner2.toString().should.equal(tokenFormat(600000).toString())
+        resultStaker1.toString().should.equal(tokenFormat(600000).toString())
+        resultStaker2.toString().should.equal('0')
 
       })
 
@@ -302,11 +316,110 @@ contract('Staker', ([deployer, owner2, staker1, staker2]) => {
         totalRewardCycles.toString().should.equal('1')
       })
 
-      describe('withdrawals withdraw() and withdraw(uint amount) ', () => {
+
+      describe('withdrawals withdraw() become noStaker', () => {
+
+        beforeEach( async () => {
+          resultStaker1  = await stakeHouse.withdraw({from:staker1})
+        })
+
+        it('calls Withdraw event', async() => {
+          const log = resultStaker1.logs[0]
+          log.event.should.eq('Withdrawal')
+          const event = log.args
+          event.staker.should.equal(staker1)
+          expect(event.blockNumber).to.exist
+          event.balancesStake.toString().should.equal('0', 'updates balancesStaked to zero ')
+          event.balanceRewards.toString().should.equal('0', 'updates balanceRewards to zero')
+          event.totalBalances.toString().should.equal('0', 'updates totalRewards to zero')
+        })
+
+        it('updates staker balances', async () => {
+          const rewards = await stakeHouse.balanceRewards(staker1);
+          const staked  = await stakeHouse.balanceStaked(staker1);
+          const totals  = await stakeHouse.balanceTotal(staker1);
+          rewards.toString().should.equal('0', 'updates balancesStaked to zero ')
+          staked.toString().should.equal('0', 'updates balanceRewards to zero')
+          totals.toString().should.equal('0', 'updates totalRewards to zero')
+
+        })
+
+        it('updates that address no longer a staker', async() => {
+          const isStaker = await stakeHouse.isStaker(staker1)
+          isStaker.should.equal(false)
+        })
+
+        it('updates and reduces total Staked ', async() => {
+          const totalStaked = await stakeHouse.totalStaked()
+          //initially was 200000 now 100000 taken out
+          totalStaked.toString().should.equal(tokenFormat('100000').toString())
+        })
+
+        it('rejects withdraw from staker with no balances ',() => {
+          stakeHouse.withdraw({from:staker2}).should.be.rejected
+        })
 
       })
 
+      
+      describe('withdrawals withdraw(uint amount) if amount equal to totalBalances will become nonStaker', () => {
+
+        it('rejects withdraw 0 amount ',() => {
+          stakeHouse.withdrawPartial(0, {from:owner2}).should.be.rejected
+        })
+
+        it('rejects amount exceeds total balances ', async () => {
+          const totalBalances = await stakeHouse.balanceTotal(owner2)
+          stakeHouse.withdrawPartial(0, {from:owner2}).should.be.rejected
+        })
+
+        beforeEach(async () => {
+          const allAmount = await stakeHouse.balanceTotal(staker1)
+          const someAmount = await stakeHouse.balanceRewards(owner2)
+          resultStaker1 = await stakeHouse.withdrawPartial(allAmount, {from:staker1})
+          resultOwner1  = await stakeHouse.withdrawPartial(someAmount, {from:owner2})
+        })
+        
+        describe(' staker 1 took out all the amount', () => {
+          it('updates staker balances', async () => {
+            const rewards = await stakeHouse.balanceRewards(staker1);
+            const staked  = await stakeHouse.balanceStaked(staker1);
+            const totals  = await stakeHouse.balanceTotal(staker1);
+            rewards.toString().should.equal('0', 'updates balancesStaked to zero ')
+            staked.toString().should.equal('0', 'updates balanceRewards to zero')
+            totals.toString().should.equal('0', 'updates totalRewards to zero')
+  
+          })
+  
+          it('updates that address no longer a staker', async() => {
+            const isStaker = await stakeHouse.isStaker(staker1)
+            isStaker.should.equal(false)
+          })
+  
+          it('updates and reduces total Staked ', async() => {
+            const totalStaked = await stakeHouse.totalStaked()
+            //initially was 200000 now 100000 taken out
+            totalStaked.toString().should.equal(tokenFormat('100000').toString())
+          })
+  
+          it('rejects withdraw from staker with no balances ',() => {
+            stakeHouse.withdraw({from:staker2}).should.be.rejected
+          })
+  
+        })
+
+        describe('owner1 only withdraw rewards ', () => {
+
+        })
+
+        
+
+
+      })
+
+
     })
+
 
   })
 
