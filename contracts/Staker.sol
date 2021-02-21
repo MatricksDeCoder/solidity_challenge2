@@ -47,8 +47,8 @@ contract Staker {
     mapping(address => uint256) internal totalBalances;
 
     // ensure only authozrized owners
-    modifier isValidOwner(address _address) {
-        require(rewardToken.isOwner(_address), "Caller is not the owner");
+    modifier isValidOwner() {
+        require(rewardToken.isOwner(msg.sender), "Caller is not the owner");
         _;
     }
 
@@ -77,7 +77,7 @@ contract Staker {
     // Event when stakers are rewarded with RewardTokens 
     event  Reward(address indexed admin, 
                     uint    indexed amountDistributed,
-                    uint    indexed rewardsTotal
+                    uint    indexed totalRewardCycles
                   );
 
     constructor(address _rewardToken, uint _newDistributionSupply, uint _blocksSchedule) 
@@ -127,14 +127,14 @@ contract Staker {
     /// @notice Change the amount of new RewardTokens that can be minted to distribute as rewards
     /// @notice Only owner/admin can change this, new RewardTokens to distirbute must not be more than current supply
     /// @param _amount amount of new reward tokens that cna be distributed as rewards
-    function changeDistributionAmount(uint _amount) isValidOwner(msg.sender) external {
+    function changeDistributionAmount(uint _amount) isValidOwner() external {
         require(_amount > 0);
         newDistributionSupply = _amount;
     }
 
     /// @notice Change rate of reward distribution by changing blocksSchedule e.g every 4 blocks every 400 blocks etc 
     /// @param _newSchedule  number of blocks before distributing rewards to stakers
-    function changeBlockSchedule(uint _newSchedule) isValidOwner(msg.sender) external {
+    function changeBlockSchedule(uint _newSchedule) isValidOwner() external {
         blocksSchedule = _newSchedule;
     }
 
@@ -214,7 +214,7 @@ contract Staker {
     }
 
     /// @notice One of owners distirbutes rewards to stakers
-    function reward() isValidSchedule() isValidOwner(msg.sender) external {
+    function reward() isValidSchedule()  external {
         rewardToken.mint(address(this),newDistributionSupply);
         totalRewardCycles = totalRewardCycles.add(1);
         lastSchedule    = block.number;
@@ -232,6 +232,5 @@ contract Staker {
         );
 
     }
-
 
 }

@@ -1,3 +1,16 @@
+# usage
+Requires (Truffle, NodeJs, Solidity, Ganache etc). See Package.json and truffle-config.js 
+Contracts not deployed any mainnet or test network. Can use Ganache to run local instance blockchain
+```
+npm install
+ganache-cli
+truffle test
+// to compile contracts
+truffle compile
+// to migrate contracts
+truffle migrate --reset
+```
+
 # challenge
 create and deploy (locally) an ERC20 token and a staking contract that will distribute rewards to stakers over time. No need for an app or UI. You can reuse published or open source code, but you must indicate the source and what you have modified.
 

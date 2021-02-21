@@ -247,10 +247,7 @@ contract('Staker', ([deployer, owner2, staker1, staker2]) => {
         //console.log("CURR BLOCK :" , +currBlock.toString())
         // valid block time has passed
         if((currBlock-lastSchedule) >= blocksSchedule) {
-          const isOwner2 = await rewardToken.isOwner(owner2)
-          const isOwnerDeployer = await rewardToken.isOwner(deployer)
-          console.log("ZZZZZZZZZZZZZZZZZ: ", isOwner2, isOwnerDeployer)
-          resultRewardFulfil   = await stakeHouse.reward({from:deployer})
+          resultRewardFulfil   = await stakeHouse.reward({from:owner2})
         }
         
       })     
@@ -275,21 +272,21 @@ contract('Staker', ([deployer, owner2, staker1, staker2]) => {
            
       it('emits reward event', async () => {
 
-        const log = resultRewardFulfill.logs[0]
+        const log = resultRewardFulfil.logs[0]
         log.event.should.eq('Reward')
         const event = log.args
         const distributed = await stakeHouse.newDistributionSupply()
-        event.admin.should.equal(owner1)
+        event.admin.should.equal(owner2)
         event.amountDistributed.toString().should.equal(distributed.toString(), 'new minted RewardTokens distributed')
         event.totalRewardCycles.toString().should.equal('1', 'correct count reward cycles')
         
       })
 
       it('updates the rewardBalances of stakers', async () => {
-        resultOwner2 = await stakeHouse.rewardBalances(owner2)
-        resultStaker1 = await stakeHouse.rewardBalances(staker1)
+        resultOwner2 = await stakeHouse.balanceRewards(owner2)
+        resultStaker1 = await stakeHouse.balanceRewards(staker1)
         // staker2 has not staked so isNotStaker and gets no rewards
-        resultStaker2 = await stakeHouse.rewardBalances(staker2)
+        resultStaker2 = await stakeHouse.balanceRewards(staker2)
         resultOwner2.toString().should.equal('0')
         resultStaker1.toString().should.equal('0')
         resultStaker2.toString().should.equal('0')
@@ -305,9 +302,9 @@ contract('Staker', ([deployer, owner2, staker1, staker2]) => {
         totalRewardCycles.toString().should.equal('1')
       })
 
-    })
+      describe('withdrawals withdraw() and withdraw(uint amount) ', () => {
 
-    describe(' withdraw of amount from project', () => {
+      })
 
     })
 
