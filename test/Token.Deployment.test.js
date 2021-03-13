@@ -60,6 +60,12 @@ contract('Token', async ([deployer, account1, account2]) =>  {
       assert.equal(result, false)
     })   
 
+    //it has an admin 
+    it('has correct admin', async ()  => {   
+      result = await token.admin()
+      assert.equal(result, deployer)
+    })   
+
   });
 
   describe('startTime and endTime validity', () => {

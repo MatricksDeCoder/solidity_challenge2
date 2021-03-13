@@ -11,6 +11,9 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
  
 contract Token is ERC20 {
 
+    // deployer/admin/owner who will be sending Token to contributors
+    address public admin;
+
     // time after which window period opens and tokens can be transferable
     uint public startTime;
 
@@ -36,6 +39,8 @@ contract Token is ERC20 {
         
         require(_startTime >= block.timestamp, "startTime must at least greater than now and not in the past");
         require(_endTime > _startTime, "endTime must be greater than startTime");
+        // set admin
+        admin = msg.sender;
         // initial token supply to admin/owner/deployer
         _mint(msg.sender, _totalSupply);
 
@@ -44,7 +49,7 @@ contract Token is ERC20 {
     }    
 
     // @return true if window period open and not closed, transfers are allowed
-    function isOpen() public view returns (bool) {
+    function isOpen() external view returns (bool) {
         return (block.timestamp >= startTime) && (block.timestamp <= endTime);
     }
 
