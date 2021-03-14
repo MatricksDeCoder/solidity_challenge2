@@ -1,6 +1,4 @@
 module.exports = {
-    totalSupply: 1000000,
-    name : 'Token',
-    symbol: 'Token',
-    decimal: 18,
+    nameContract : 'Contribution',
+    price: 1
 }
